@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -38,6 +39,25 @@ class Settings(BaseModel):
     # Embeddings
     embedding_model: str
     embedding_dimensions: int = Field(default=768, ge=1, le=MAX_FIRESTORE_VECTOR_DIMENSIONS)
+
+    # Agent runtime. Anything other than "development" disables demo identities.
+    app_env: Literal["development", "production"] = "production"
+    dev_auth_context: str | None = None
+    tool_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
+    model_timeout_seconds: float = Field(default=60.0, gt=0, le=600)
+    agent_run_timeout_seconds: float = Field(default=180.0, gt=0, le=1800)
+    max_llm_calls: int = Field(default=8, ge=1, le=50)
+    max_tool_calls: int = Field(default=6, ge=1, le=50)
+    eval_judge_model: str | None = None
+
+    @field_validator("dev_auth_context", "eval_judge_model", mode="before")
+    @classmethod
+    def _blank_is_none(cls, v):
+        return None if isinstance(v, str) and not v.strip() else v
+
+    @property
+    def judge_model(self) -> str:
+        return self.eval_judge_model or self.model
 
     @field_validator(
         "project",
@@ -90,6 +110,14 @@ _ENV_VARS = {
     "firestore_database": "FIRESTORE_DATABASE",
     "embedding_model": "EMBEDDING_MODEL",
     "embedding_dimensions": "EMBEDDING_DIMENSIONS",
+    "app_env": "APP_ENV",
+    "dev_auth_context": "DEV_AUTH_CONTEXT",
+    "tool_timeout_seconds": "TOOL_TIMEOUT_SECONDS",
+    "model_timeout_seconds": "MODEL_TIMEOUT_SECONDS",
+    "agent_run_timeout_seconds": "AGENT_RUN_TIMEOUT_SECONDS",
+    "max_llm_calls": "MAX_LLM_CALLS",
+    "max_tool_calls": "MAX_TOOL_CALLS",
+    "eval_judge_model": "EVAL_JUDGE_MODEL",
 }
 
 
