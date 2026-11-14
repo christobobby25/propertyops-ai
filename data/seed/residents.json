@@ -1,0 +1,42 @@
+[
+  {
+    "resident_id": "RES-001",
+    "property_id": "PROP-001",
+    "unit_id": "UNIT-001",
+    "full_name": "Maya Chen",
+    "email": "resident1@example.com",
+    "lease_status": "active"
+  },
+  {
+    "resident_id": "RES-002",
+    "property_id": "PROP-001",
+    "unit_id": "UNIT-002",
+    "full_name": "Jordan Ellis",
+    "email": "resident2@example.com",
+    "lease_status": "active"
+  },
+  {
+    "resident_id": "RES-003",
+    "property_id": "PROP-001",
+    "unit_id": "UNIT-003",
+    "full_name": "Priya Shah",
+    "email": "resident3@example.com",
+    "lease_status": "active"
+  },
+  {
+    "resident_id": "RES-004",
+    "property_id": "PROP-002",
+    "unit_id": "UNIT-004",
+    "full_name": "Noah Brooks",
+    "email": "resident4@example.com",
+    "lease_status": "active"
+  },
+  {
+    "resident_id": "RES-005",
+    "property_id": "PROP-002",
+    "unit_id": "UNIT-005",
+    "full_name": "Elena Cruz",
+    "email": "resident5@example.com",
+    "lease_status": "active"
+  }
+]

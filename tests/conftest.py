@@ -2,21 +2,25 @@ import pytest
 
 from app import config
 
-ENV_VARS = (
-    "GOOGLE_GENAI_USE_VERTEXAI",
-    "GOOGLE_CLOUD_PROJECT",
-    "GOOGLE_CLOUD_LOCATION",
-    "GEMINI_MODEL",
-)
+VALID_ENV = {
+    "GOOGLE_GENAI_USE_VERTEXAI": "true",
+    "GOOGLE_CLOUD_PROJECT": "test-project",
+    "GOOGLE_CLOUD_LOCATION": "global",
+    "GEMINI_MODEL": "gemini-test",
+    "GOOGLE_CLOUD_REGION": "us-central1",
+    "GCS_BUCKET": "test-bucket",
+    "GCS_POLICY_PREFIX": "policy_docs/",
+    "FIRESTORE_DATABASE": "(default)",
+    "EMBEDDING_MODEL": "embed-test",
+    "EMBEDDING_DIMENSIONS": "8",
+}
 
 
 @pytest.fixture
 def valid_env(monkeypatch):
     """Isolated, valid settings that never depend on a local .env."""
-    monkeypatch.setenv("GOOGLE_GENAI_USE_VERTEXAI", "true")
-    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project")
-    monkeypatch.setenv("GOOGLE_CLOUD_LOCATION", "global")
-    monkeypatch.setenv("GEMINI_MODEL", "gemini-test")
+    for k, v in VALID_ENV.items():
+        monkeypatch.setenv(k, v)
     return monkeypatch
 
 

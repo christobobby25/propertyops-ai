@@ -1,0 +1,76 @@
+[
+  {
+    "context_id": "AUTH-RES-001",
+    "subject": "demo-resident-001",
+    "role": "resident",
+    "resident_id": "RES-001",
+    "allowed_property_ids": [
+      "PROP-001"
+    ],
+    "allowed_unit_ids": [
+      "UNIT-001"
+    ]
+  },
+  {
+    "context_id": "AUTH-RES-002",
+    "subject": "demo-resident-002",
+    "role": "resident",
+    "resident_id": "RES-002",
+    "allowed_property_ids": [
+      "PROP-001"
+    ],
+    "allowed_unit_ids": [
+      "UNIT-002"
+    ]
+  },
+  {
+    "context_id": "AUTH-RES-003",
+    "subject": "demo-resident-003",
+    "role": "resident",
+    "resident_id": "RES-003",
+    "allowed_property_ids": [
+      "PROP-001"
+    ],
+    "allowed_unit_ids": [
+      "UNIT-003"
+    ]
+  },
+  {
+    "context_id": "AUTH-RES-004",
+    "subject": "demo-resident-004",
+    "role": "resident",
+    "resident_id": "RES-004",
+    "allowed_property_ids": [
+      "PROP-002"
+    ],
+    "allowed_unit_ids": [
+      "UNIT-004"
+    ]
+  },
+  {
+    "context_id": "AUTH-RES-005",
+    "subject": "demo-resident-005",
+    "role": "resident",
+    "resident_id": "RES-005",
+    "allowed_property_ids": [
+      "PROP-002"
+    ],
+    "allowed_unit_ids": [
+      "UNIT-005"
+    ]
+  },
+  {
+    "context_id": "AUTH-MGR-001",
+    "subject": "demo-manager-001",
+    "role": "property_manager",
+    "resident_id": null,
+    "allowed_property_ids": [
+      "PROP-001"
+    ],
+    "allowed_unit_ids": [
+      "UNIT-001",
+      "UNIT-002",
+      "UNIT-003"
+    ]
+  }
+]

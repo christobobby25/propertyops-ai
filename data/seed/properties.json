@@ -1,0 +1,20 @@
+[
+  {
+    "property_id": "PROP-001",
+    "name": "Cedar Grove Demo Apartments",
+    "city": "Dallas",
+    "state": "TX",
+    "timezone": "America/Chicago",
+    "office_hours": "Monday-Friday 09:00-17:00 local time",
+    "emergency_contact_label": "Cedar Grove demo on-call maintenance channel"
+  },
+  {
+    "property_id": "PROP-002",
+    "name": "Lakeview Demo Residences",
+    "city": "Plano",
+    "state": "TX",
+    "timezone": "America/Chicago",
+    "office_hours": "Monday-Friday 08:00-18:00 local time",
+    "emergency_contact_label": "Lakeview demo on-call maintenance channel"
+  }
+]

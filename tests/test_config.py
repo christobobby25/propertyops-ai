@@ -59,3 +59,50 @@ def test_invalid_bool_rejected(valid_env):
     valid_env.setenv("GOOGLE_GENAI_USE_VERTEXAI", "maybe")
     with pytest.raises(ConfigError, match="GOOGLE_GENAI_USE_VERTEXAI"):
         get_settings()
+
+
+def test_data_settings_loaded(valid_env):
+    s = get_settings()
+    assert s.region == "us-central1"
+    assert s.gcs_bucket == "test-bucket"
+    assert s.firestore_database == "(default)"
+    assert s.embedding_model == "embed-test"
+    assert s.embedding_dimensions == 8
+
+
+def test_optional_settings_have_defaults(valid_env):
+    for var in ("GCS_POLICY_PREFIX", "FIRESTORE_DATABASE", "EMBEDDING_DIMENSIONS"):
+        valid_env.delenv(var)
+    s = get_settings()
+    assert (s.gcs_policy_prefix, s.firestore_database, s.embedding_dimensions) == (
+        "policy_docs/",
+        "(default)",
+        768,
+    )
+
+
+@pytest.mark.parametrize("var", ["GCS_BUCKET", "EMBEDDING_MODEL", "GOOGLE_CLOUD_REGION"])
+def test_required_data_settings(valid_env, var):
+    valid_env.delenv(var)
+    with pytest.raises(ConfigError, match=var):
+        get_settings()
+
+
+@pytest.mark.parametrize("dims", ["0", "2049", "abc"])
+def test_embedding_dimensions_bounds(valid_env, dims):
+    valid_env.setenv("EMBEDDING_DIMENSIONS", dims)
+    with pytest.raises(ConfigError, match="EMBEDDING_DIMENSIONS"):
+        get_settings()
+
+
+@pytest.mark.parametrize("bucket", ["gs://test-bucket", "test-bucket/docs"])
+def test_bucket_must_be_bare_name(valid_env, bucket):
+    valid_env.setenv("GCS_BUCKET", bucket)
+    with pytest.raises(ConfigError, match="GCS_BUCKET"):
+        get_settings()
+
+
+@pytest.mark.parametrize("prefix", ["policy_docs", "/policy_docs/", "policy_docs//"])
+def test_prefix_normalized(valid_env, prefix):
+    valid_env.setenv("GCS_POLICY_PREFIX", prefix)
+    assert get_settings().gcs_policy_prefix == "policy_docs/"

@@ -1,0 +1,44 @@
+{
+  "dataset_name": "PropertyOps AI synthetic starter dataset",
+  "schema_version": "1.0.0",
+  "synthetic": true,
+  "snapshot_at": "2026-11-13T12:00:00-06:00",
+  "timezone": "America/Chicago",
+  "description": "Fictional property operations data for agentic AI and RAG development. No affiliation with RealPage or FedEx. Policies are invented demo rules, not legal requirements or real operating procedures.",
+  "usage_notes": [
+    "Index only policy_documents for RAG. Use structured collections through authorized tools for current operational facts.",
+    "Keep evaluation_cases outside all retrieval indexes and model-visible context; they contain expected answers.",
+    "demo_auth_contexts are test fixtures, not credentials. Production authorization must come from a verified identity provider.",
+    "Resolve unit and property access on the server; never trust a property_id or resident_id supplied by the model.",
+    "Property membership alone does not permit a resident to read another resident's work orders.",
+    "Use the snapshot time as the evaluation clock. Reset the seed state between independent evaluation cases.",
+    "All example.com email addresses, people, properties, records, and policy thresholds are fictional.",
+    "Do not expose internal notes to residents or ingest work orders and resident profiles into a shared vector index."
+  ],
+  "enums": {
+    "work_order_status": [
+      "open",
+      "scheduled",
+      "in_progress",
+      "completed",
+      "cancelled"
+    ],
+    "active_work_order_status": [
+      "open",
+      "scheduled",
+      "in_progress"
+    ],
+    "priority": [
+      "routine",
+      "urgent",
+      "emergency"
+    ],
+    "category": [
+      "hvac",
+      "plumbing",
+      "electrical",
+      "appliance",
+      "access"
+    ]
+  }
+}

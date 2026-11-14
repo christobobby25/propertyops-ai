@@ -1,0 +1,27 @@
+[
+  {
+    "unit_id": "UNIT-001",
+    "property_id": "PROP-001",
+    "unit_number": "101"
+  },
+  {
+    "unit_id": "UNIT-002",
+    "property_id": "PROP-001",
+    "unit_number": "102"
+  },
+  {
+    "unit_id": "UNIT-003",
+    "property_id": "PROP-001",
+    "unit_number": "201"
+  },
+  {
+    "unit_id": "UNIT-004",
+    "property_id": "PROP-002",
+    "unit_number": "101"
+  },
+  {
+    "unit_id": "UNIT-005",
+    "property_id": "PROP-002",
+    "unit_number": "202"
+  }
+]

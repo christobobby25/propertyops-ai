@@ -36,5 +36,8 @@ jobs:
           ruff check .
           ruff format --check .
 
+      - name: Check extracted data matches source dataset
+        run: python -m scripts.extract_seed_data --check
+
       - name: Test
         run: pytest

@@ -1,0 +1,30 @@
+{
+  "approval_required_for": [
+    "create_work_order"
+  ],
+  "read_authorization": "Residents can read published resident policies for their own property and work orders for their own unit. Property managers can read work orders only for assigned properties.",
+  "write_authorization": "For the MVP, residents can create requests only for their own unit. The backend resolves the unit from verified identity.",
+  "proposal_fields": [
+    "proposal_id",
+    "resident_id",
+    "property_id",
+    "unit_id",
+    "category",
+    "summary",
+    "description",
+    "priority",
+    "entry_permission",
+    "created_at",
+    "expires_at"
+  ],
+  "approval_rules": "Bind approval to the authenticated actor, proposal_id, immutable payload hash, and expiry. Any payload change requires fresh approval. Revalidate authorization at execution.",
+  "entry_permission_values": [
+    "permission_granted",
+    "appointment_required"
+  ],
+  "entry_permission_note": "Entry permission is separate from approval to create a ticket; ask the resident explicitly.",
+  "idempotency": "Require an idempotency key scoped to actor and operation. Persist key, payload hash, and result atomically with ticket creation. Same key and payload returns the original result; same key with a changed payload is rejected.",
+  "duplicate_rule": "Check active work orders for the same unit and category. Show an existing matching issue before proposing a new request. Ask for clarification when it may be a different issue; do not block all same-category requests blindly.",
+  "failure_rule": "If an operational tool fails, report that status could not be verified. Do not fabricate a lookup result or claim successful creation.",
+  "priority_rule": "Classify from the applicable published policy and reported facts. Ask for missing facts instead of guessing. Emergency guidance must not wait for approval or successful ticket creation."
+}
