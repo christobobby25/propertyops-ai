@@ -167,7 +167,15 @@ def trace_summary(run: CaseRun) -> str:
         if "policies" in r:
             summary["sections"] = [p["section_id"] for p in r["policies"]]
         if "work_orders" in r:
-            summary["work_orders"] = [w["work_order_id"] for w in r["work_orders"]]
+            # Enough detail for the judge to verify reported facts against the tool result.
+            summary["work_orders"] = [
+                {
+                    k: w.get(k)
+                    for k in ("work_order_id", "unit_number", "category", "status", "priority")
+                    if w.get(k) is not None
+                }
+                for w in r["work_orders"]
+            ]
         if "matching_work_orders" in r:
             summary["matching"] = [w["work_order_id"] for w in r["matching_work_orders"]]
         if r.get("proposal"):

@@ -9,6 +9,12 @@ Firestore (vector search, plus transactions for writes). All data is synthetic.
 - **Stage 2:** approval-controlled work-order creation. It is **off by default**
   (`ENABLE_WORK_ORDER_CREATION=false`).
 
+**Start here:** [Architecture and decisions](docs/ARCHITECTURE.md) ·
+[Measured results](docs/RESULTS.md) · [Five-minute demo](docs/DEMO.md)
+
+**Deployed:** https://propertyops-web-859945748824.us-central1.run.app (Cloud Run,
+Google sign-in. Accounts must be provisioned, so it is not open to the public.)
+
 ## Setup
 
 ```bash
@@ -82,13 +88,15 @@ FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 python -m scripts.serve --emulator
   verifies the ID token and maps `google:<sub>` to a scope in `user_identities`, which
   you fill with `scripts/provision_identity.py`. The demo picker and demo auth are refused.
 
-## Deployment (Cloud Run): prepared, not deployed
+## Deployment (Cloud Run)
 
-- `python -m scripts.print_deploy_commands --oauth-client-id <id>` prints the commands
-  to run. Nothing in it touches the cloud by itself. It sets up:
+- **Deployed** as `propertyops-web` in us-central1.
+- `python -m scripts.print_deploy_commands --oauth-client-id <id>` prints the exact
+  commands used. It doesn't run anything itself. It sets up:
   - a dedicated service account with only datastore user, Vertex AI user, log writer
     and trace agent roles;
-  - an Artifact Registry repo and a Cloud Build image build;
+  - an Artifact Registry repo, and a Cloud Build build (`cloudbuild.yaml`) that runs
+    as its own build service account;
   - `gcloud run deploy` with production auth, creation off and `--max-instances=1`.
 - The image is defined by the `Dockerfile`. Eval cases, demo fixtures, tests and
   scripts are excluded.
