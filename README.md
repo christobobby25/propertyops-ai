@@ -12,8 +12,9 @@ Firestore (vector search, plus transactions for writes). All data is synthetic.
 **Start here:** [Architecture and decisions](docs/ARCHITECTURE.md) ·
 [Measured results](docs/RESULTS.md) · [Five-minute demo](docs/DEMO.md)
 
-**Deployed:** https://propertyops-web-859945748824.us-central1.run.app (Cloud Run,
-Google sign-in. Accounts must be provisioned, so it is not open to the public.)
+**Deployment:** it was deployed to Cloud Run with Google sign-in and verified on
+2026-11-15 (see [RESULTS](docs/RESULTS.md)), then taken down to avoid costs. Redeploy
+with `python -m scripts.print_deploy_commands`.
 
 ## Setup
 
@@ -90,7 +91,7 @@ FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 python -m scripts.serve --emulator
 
 ## Deployment (Cloud Run)
 
-- **Deployed** as `propertyops-web` in us-central1.
+- Previously deployed as `propertyops-web` in us-central1; currently taken down.
 - `python -m scripts.print_deploy_commands --oauth-client-id <id>` prints the exact
   commands used. It doesn't run anything itself. It sets up:
   - a dedicated service account with only datastore user, Vertex AI user, log writer

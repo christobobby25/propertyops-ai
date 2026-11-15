@@ -95,6 +95,10 @@ retrying the search.
   - Logs reach Cloud Logging as structured entries with trace correlation (for
     example `auth_failed` with the reason `invalid token`).
 
+After verification, the service, the image repository and the build bucket were deleted,
+and billing was unlinked from the project to avoid costs (2026-11-15). Firestore and the
+policy bucket were kept.
+
 ## Known limitations
 
 - One Cloud Run instance, because sessions and pending confirmations are held in
