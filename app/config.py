@@ -48,6 +48,7 @@ class Settings(BaseModel):
     agent_run_timeout_seconds: float = Field(default=180.0, gt=0, le=1800)
     max_llm_calls: int = Field(default=8, ge=1, le=50)
     max_tool_calls: int = Field(default=6, ge=1, le=50)
+    model_retry_attempts: int = Field(default=3, ge=1, le=8)
     eval_judge_model: str | None = None
 
     # Work-order creation (Stage 2). Off by default: the agent never writes
@@ -59,6 +60,16 @@ class Settings(BaseModel):
     # falls back to cloud; its project ID must be a demo-* project.
     firestore_target: Literal["cloud", "emulator"] = "cloud"
     emulator_project_id: str = "demo-propertyops"
+
+    # Web app authentication. "demo" (header-selected fixtures) is refused unless
+    # APP_ENV=development; "google_id_token" verifies a Google-signed ID token.
+    auth_mode: Literal["demo", "google_id_token"] = "google_id_token"
+    oauth_audience: str | None = None
+
+    @field_validator("oauth_audience", mode="before")
+    @classmethod
+    def _blank_audience(cls, v):
+        return None if isinstance(v, str) and not v.strip() else v
 
     @field_validator("emulator_project_id")
     @classmethod
@@ -134,11 +145,14 @@ _ENV_VARS = {
     "agent_run_timeout_seconds": "AGENT_RUN_TIMEOUT_SECONDS",
     "max_llm_calls": "MAX_LLM_CALLS",
     "max_tool_calls": "MAX_TOOL_CALLS",
+    "model_retry_attempts": "MODEL_RETRY_ATTEMPTS",
     "eval_judge_model": "EVAL_JUDGE_MODEL",
     "enable_work_order_creation": "ENABLE_WORK_ORDER_CREATION",
     "proposal_ttl_seconds": "PROPOSAL_TTL_SECONDS",
     "firestore_target": "FIRESTORE_TARGET",
     "emulator_project_id": "EMULATOR_PROJECT_ID",
+    "auth_mode": "AUTH_MODE",
+    "oauth_audience": "OAUTH_AUDIENCE",
 }
 
 

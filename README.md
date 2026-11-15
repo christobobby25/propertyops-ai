@@ -59,6 +59,57 @@ FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 python -m scripts.dev_web --emulator --as
 - Outside development the agent **fails closed**: every tool returns `unauthenticated`
   until a real identity provider is connected (`app/agent/identity.py`).
 
+## Web app (resident UI)
+
+```bash
+# Terminal 1: Firestore emulator (Java 21+ on PATH)
+PATH=/opt/homebrew/opt/openjdk@21/bin:$PATH gcloud emulators firestore start --host-port=127.0.0.1:8085
+
+# Terminal 2: the app, with creation enabled against the emulator (reseeded on start)
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 python -m scripts.serve --emulator
+# open http://127.0.0.1:8080
+```
+
+- The UI has chat with clickable policy citations, a "Your requests" panel, and a
+  proposal card with **Approve and submit / Cancel**. The card shows the exact contents
+  the backend rendered.
+- Approve and Cancel call `POST /api/confirm`. It accepts only the confirmation pending
+  in that user's own session, and only once.
+- A **Demo identity** picker (development only) switches between the fixture
+  residents and the manager.
+- `python -m scripts.serve` without `--emulator` is read-only against cloud Firestore.
+- In production (`AUTH_MODE=google_id_token`), users sign in with Google. The backend
+  verifies the ID token and maps `google:<sub>` to a scope in `user_identities`, which
+  you fill with `scripts/provision_identity.py`. The demo picker and demo auth are refused.
+
+## Deployment (Cloud Run): prepared, not deployed
+
+- `python -m scripts.print_deploy_commands --oauth-client-id <id>` prints the commands
+  to run. Nothing in it touches the cloud by itself. It sets up:
+  - a dedicated service account with only datastore user, Vertex AI user, log writer
+    and trace agent roles;
+  - an Artifact Registry repo and a Cloud Build image build;
+  - `gcloud run deploy` with production auth, creation off and `--max-instances=1`.
+- The image is defined by the `Dockerfile`. Eval cases, demo fixtures, tests and
+  scripts are excluded.
+- **Known limitation:** ADK sessions and pending confirmations are held in memory, so
+  the service must run as **one instance**, with session affinity. Scaling out needs a
+  persistent session store (for example ADK's database session service) and a shared
+  pending-confirmation store.
+
+## Observability and load testing
+
+- **Structured JSON logs**, compatible with Cloud Logging:
+  - Events: `http_request`, `model_call` (latency, prompt/output/total tokens),
+    `tool_call` (latency, status, error kind), `authz_denied`, `turn_complete`,
+    `approval_decision`, `auth_failed`.
+  - Each line carries a request ID and Cloud Trace correlation.
+  - User subjects are logged only as salted hashes.
+- **Model calls** retry 429/500/503 with backoff (`MODEL_RETRY_ATTEMPTS`).
+- **`scripts/load_test.py`** runs staged concurrent users against a running server.
+- **`FAULT_INJECTION`** (development only), for example
+  `work_orders_timeout=0.3,retrieval_error=0.3`, simulates backend failures.
+
 ## Work-order creation (Stage 2)
 
 ```

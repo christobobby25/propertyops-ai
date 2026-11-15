@@ -1,0 +1,15 @@
+.venv/
+.git/
+.github/
+.env
+.env.*
+reports/
+tests/
+agents/
+scripts/
+**/__pycache__/
+**/.adk/
+data/eval/
+data/fixtures/
+data/source/
+data/seed/

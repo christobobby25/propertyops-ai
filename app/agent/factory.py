@@ -10,6 +10,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
 from google.genai import types
 
+from app import observability as telemetry
 from app.agent.clock import Clock, SystemClock
 from app.agent.guards import make_before_model_callback, make_before_tool_callback
 from app.agent.identity import IdentityProvider, identity_provider_for
@@ -48,11 +49,30 @@ def build_agent(
         description="Answers maintenance-policy and work-order questions for the signed-in user.",
         instruction=instruction_provider(creation_enabled=proposals_factory is not None),
         tools=[FunctionTool(fn) for fn in fns],
-        before_tool_callback=make_before_tool_callback(settings.max_tool_calls),
-        before_model_callback=make_before_model_callback(settings.max_llm_calls),
+        before_tool_callback=[
+            telemetry.before_tool,
+            make_before_tool_callback(settings.max_tool_calls),
+        ],
+        after_tool_callback=telemetry.after_tool,
+        before_model_callback=[
+            telemetry.before_model,
+            make_before_model_callback(settings.max_llm_calls),
+        ],
+        after_model_callback=telemetry.after_model,
         generate_content_config=types.GenerateContentConfig(
             temperature=0.2,
-            http_options=types.HttpOptions(timeout=int(settings.model_timeout_seconds * 1000)),
+            http_options=types.HttpOptions(
+                timeout=int(settings.model_timeout_seconds * 1000),
+                # Retry transient quota/availability errors with jittered backoff.
+                retry_options=types.HttpRetryOptions(
+                    attempts=settings.model_retry_attempts,
+                    initial_delay=1.0,
+                    max_delay=20.0,
+                    exp_base=2.0,
+                    jitter=1.0,
+                    http_status_codes=[429, 500, 503],
+                ),
+            ),
         ),
         disallow_transfer_to_parent=True,
         disallow_transfer_to_peers=True,

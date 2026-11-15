@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PropertyOps Assistant</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">⌂</span>
+      <div>
+        <h1>PropertyOps Assistant</h1>
+        <p class="tagline">Demo properties · synthetic data</p>
+      </div>
+    </div>
+    <div class="identity">
+      <label id="demo-picker" hidden>
+        <span>Demo identity</span>
+        <select id="demo-identity"></select>
+      </label>
+      <div id="google-signin" hidden></div>
+      <span id="whoami" class="whoami"></span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="chat" aria-label="Conversation">
+      <div id="messages" class="messages" aria-live="polite">
+        <div class="msg assistant intro">
+          <div class="bubble">
+            Hi! Ask about your property's maintenance policies, check your requests,
+            or report a new issue. I'll cite the policy sections I rely on, and nothing
+            is submitted until you approve it.
+          </div>
+        </div>
+      </div>
+      <form id="composer" class="composer" autocomplete="off">
+        <textarea id="input" rows="2" maxlength="2000"
+                  placeholder="e.g. My AC stopped working and it's 87°F inside" required></textarea>
+        <button id="send" type="submit">Send</button>
+      </form>
+      <p class="hint">In an emergency (fire, smoke, gas, flooding you can't contain), get to
+        safety and call emergency services first.</p>
+    </section>
+
+    <aside class="side" aria-label="Your requests">
+      <div class="side-head">
+        <h2>Your requests</h2>
+        <button id="refresh" class="ghost" type="button" title="Refresh">↻</button>
+      </div>
+      <ul id="work-orders" class="work-orders"><li class="empty">Loading…</li></ul>
+    </aside>
+  </main>
+
+  <template id="proposal-template">
+    <div class="proposal-card" role="group" aria-label="Request awaiting your approval">
+      <div class="proposal-head">Approve this request?</div>
+      <pre class="proposal-body"></pre>
+      <div class="proposal-actions">
+        <button class="approve" type="button">Approve and submit</button>
+        <button class="cancel ghost" type="button">Cancel</button>
+      </div>
+      <p class="proposal-note">Nothing is created until you approve. Approval applies only
+        to exactly what is shown here.</p>
+    </div>
+  </template>
+</body>
+</html>

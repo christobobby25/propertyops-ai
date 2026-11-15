@@ -99,3 +99,10 @@ def test_eval_answers_not_in_agent_context():
     ]:
         text = Path(path).read_text()
         assert "evaluation_cases" not in text and "app.evaluation" not in text, path
+
+
+def test_model_calls_retry_transient_errors(valid_env):
+    valid_env.setenv("MODEL_RETRY_ATTEMPTS", "4")
+    agent = build_agent(get_settings(), StaticIdentityProvider(None), lambda: None, lambda: None)
+    retry = agent.generate_content_config.http_options.retry_options
+    assert retry.attempts == 4 and set(retry.http_status_codes) == {429, 500, 503}

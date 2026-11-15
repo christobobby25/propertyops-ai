@@ -78,3 +78,70 @@ def identity_provider_for(settings: Settings, settings_loader) -> IdentityProvid
     if settings.app_env == "development":
         return DevFixtureIdentityProvider(settings_loader)
     return FailClosedIdentityProvider()
+
+
+# --- Request-bound identity (web backend) -----------------------------------------
+
+
+class IdentityDirectory(Protocol):
+    """Maps a verified subject to its authorization scope (server-side data)."""
+
+    def lookup(self, subject: str) -> AuthContext | None: ...
+
+
+class DemoDirectory:
+    """Demo fixtures keyed by subject. Development only (enforced by the web app)."""
+
+    def lookup(self, subject: str) -> AuthContext | None:
+        import json
+
+        from app.demo_auth import DEMO_AUTH_PATH, context_from_fixture
+
+        for f in json.loads(DEMO_AUTH_PATH.read_text()):
+            if f["subject"] == subject:
+                return context_from_fixture(f)
+        return None
+
+
+class FirestoreIdentityDirectory:
+    """``user_identities/{subject}`` documents maintained by administrators:
+    role, resident_id, allowed_property_ids, allowed_unit_ids, active."""
+
+    COLLECTION = "user_identities"
+
+    def __init__(self, client):
+        self._db = client
+
+    def lookup(self, subject: str) -> AuthContext | None:
+        snap = self._db.collection(self.COLLECTION).document(subject).get()
+        if not snap.exists or not snap.get("active"):
+            return None
+        d = snap.to_dict()
+        return AuthContext(
+            subject=subject,
+            role=d["role"],
+            resident_id=d.get("resident_id"),
+            allowed_property_ids=frozenset(d.get("allowed_property_ids") or ()),
+            allowed_unit_ids=frozenset(d.get("allowed_unit_ids") or ()),
+        )
+
+
+class SubjectDirectoryIdentityProvider:
+    """Resolves the actor from ``tool_context.user_id`` — set by the backend when it
+    calls ``Runner.run_async(user_id=<verified subject>)``, never by the model —
+    and looks up the current scope on every call (revocations apply immediately)."""
+
+    def __init__(self, directory: IdentityDirectory):
+        self._directory = directory
+
+    def resolve(self, tool_context: Any) -> AuthContext:
+        subject = getattr(tool_context, "user_id", None)
+        if not subject:
+            raise IdentityError("no authenticated subject on this invocation")
+        try:
+            ctx = self._directory.lookup(subject)
+        except Exception as e:
+            raise IdentityError(f"identity lookup failed: {type(e).__name__}") from None
+        if ctx is None:
+            raise IdentityError("subject is not provisioned")
+        return _validated(ctx)
