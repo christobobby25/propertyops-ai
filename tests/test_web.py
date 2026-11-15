@@ -369,3 +369,26 @@ def test_deploy_commands_are_least_privilege_and_production(valid_env, capsys):
     assert "AUTH_MODE=google_id_token" in out and "APP_ENV=production" in out
     assert "ENABLE_WORK_ORDER_CREATION=false" in out and "--max-instances=1" in out
     assert "roles/owner" not in out and "roles/editor" not in out
+
+
+def test_google_mode_csp_allows_only_gsi(valid_env):
+    valid_env.setenv("AUTH_MODE", "google_id_token")
+    valid_env.setenv("OAUTH_AUDIENCE", "client-123")
+    s = get_settings()
+    auth = Authenticator(s, verify_token=lambda t, a: {"sub": "42", "email_verified": True})
+    app = create_app(
+        s,
+        chat=ChatService(s, None, runner=StubRunner()),
+        directory=DemoDirectory(),
+        work_orders=SeedWorkOrderRepo(),
+        authenticator=auth,
+    )
+    client = TestClient(app)
+    csp = client.get("/").headers["Content-Security-Policy"]
+    assert "script-src 'self' https://accounts.google.com/gsi/" in csp
+    assert "frame-ancestors 'none'" in csp
+    assert client.get("/health").json() == {"ok": True}
+    # Verified but unprovisioned: 403 tells the caller their own account ID.
+    r = client.get("/api/me", headers={"Authorization": "Bearer t"})
+    assert r.status_code == 403 and r.json()["detail"]["subject"] == "google:42"
+    assert "demo_identities" not in client.get("/api/config").json()

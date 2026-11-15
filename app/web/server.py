@@ -40,10 +40,11 @@ class ConfirmRequest(BaseModel):
 
 
 def _security_headers(response, google_signin: bool):
-    script_src = "'self' https://accounts.google.com" if google_signin else "'self'"
+    # Google Identity Services needs its script, styles, iframe and XHR endpoints.
+    gsi = " https://accounts.google.com/gsi/" if google_signin else ""
     response.headers["Content-Security-Policy"] = (
-        f"default-src 'self'; script-src {script_src}; style-src 'self'; "
-        "img-src 'self' data:; connect-src 'self'; frame-src https://accounts.google.com; "
+        f"default-src 'self'; script-src 'self'{gsi}; style-src 'self'{gsi}; "
+        f"img-src 'self' data:; connect-src 'self'{gsi}; frame-src{gsi or " 'none'"}; "
         "frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -167,12 +168,15 @@ def create_app(
             log.warning(
                 "auth_unprovisioned", extra={"event": "authz_denied", "subject": principal.subject}
             )
-            raise HTTPException(403, "account is not provisioned")
+            # The caller's own verified ID, so an administrator can provision it.
+            raise HTTPException(
+                403, {"message": "account is not provisioned", "subject": principal.subject}
+            )
         return ctx
 
     User = Annotated[AuthContext, Depends(current_user)]
 
-    @app.get("/healthz")
+    @app.get("/health")
     def healthz():
         return {"ok": True}
 

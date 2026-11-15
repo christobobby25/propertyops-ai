@@ -1,0 +1,15 @@
+# Image build for the PropertyOps web app, run as a dedicated least-privilege
+# build service account (see scripts/print_deploy_commands.py).
+#   gcloud builds submit --config cloudbuild.yaml --substitutions=_TAG=$(git rev-parse --short HEAD) \
+#     --service-account=projects/$PROJECT/serviceAccounts/propertyops-build@$PROJECT.iam.gserviceaccount.com
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_IMAGE}:${_TAG}", "."]
+images:
+  - "${_IMAGE}:${_TAG}"
+substitutions:
+  _IMAGE: us-central1-docker.pkg.dev/${PROJECT_ID}/propertyops/propertyops-web
+  _TAG: latest
+options:
+  logging: CLOUD_LOGGING_ONLY
+  dynamicSubstitutions: true

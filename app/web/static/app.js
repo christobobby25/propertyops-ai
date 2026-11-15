@@ -37,8 +37,9 @@ async function api(path, options = {}) {
   let body = null;
   try { body = await res.json(); } catch (_) { /* empty */ }
   if (!res.ok) {
-    const msg = body?.detail || body?.message || `Request failed (${res.status})`;
-    throw Object.assign(new Error(msg), { status: res.status });
+    const detail = body?.detail;
+    const msg = (typeof detail === "string" ? detail : detail?.message) || body?.message || `Request failed (${res.status})`;
+    throw Object.assign(new Error(msg), { status: res.status, subject: detail?.subject });
   }
   return body;
 }
@@ -229,8 +230,10 @@ async function refreshIdentity() {
   try {
     const me = await api("/api/me");
     $("whoami").textContent = `${me.role.replace("_", " ")}`;
-  } catch (_) {
-    $("whoami").textContent = "not signed in";
+  } catch (err) {
+    $("whoami").textContent = err.subject
+      ? `not provisioned yet — account ID ${err.subject}`
+      : "not signed in";
   }
   loadWorkOrders();
 }

@@ -99,7 +99,7 @@ async def run_stage(url: str, users: int, turns: int, timeout: float) -> dict:
 async def _main(args) -> int:
     stages = [int(x) for x in args.stages.split(",")]
     async with httpx.AsyncClient(base_url=args.url, timeout=10) as c:
-        if (await c.get("/healthz")).status_code != 200:
+        if (await c.get("/health")).status_code != 200:
             print("server not healthy", file=sys.stderr)
             return 2
     report = {"url": args.url, "label": args.label, "turns": args.turns, "stages": []}

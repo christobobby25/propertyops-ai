@@ -18,6 +18,7 @@ from scripts._cli import load_settings
 
 SERVICE = "propertyops-web"
 SA_NAME = "propertyops-web"
+BUILD_SA_NAME = "propertyops-build"
 REPO = "propertyops"
 ROLES = (
     "roles/datastore.user",  # Firestore read/write (work orders, proposals)
@@ -30,6 +31,7 @@ ROLES = (
 def commands(s, client_id: str, max_instances: int, enable_creation: bool) -> list[tuple[str, str]]:
     p, r = shlex.quote(s.project), shlex.quote(s.region)
     sa = f"{SA_NAME}@{s.project}.iam.gserviceaccount.com"
+    build_sa = f"{BUILD_SA_NAME}@{s.project}.iam.gserviceaccount.com"
     image = f"{s.region}-docker.pkg.dev/{s.project}/{REPO}/{SERVICE}:$(git rev-parse --short HEAD)"
     env = ",".join(
         [
@@ -75,7 +77,23 @@ def commands(s, client_id: str, max_instances: int, enable_creation: bool) -> li
             f"gcloud artifacts repositories create {REPO} --repository-format=docker "
             f"--location={r} --project={p}",
         ),
-        ("Build image (Cloud Build)", f"gcloud builds submit --tag {image} --project={p}"),
+        (
+            "Dedicated build service account (read build source, push to this repo, write logs)",
+            f"gcloud iam service-accounts create {BUILD_SA_NAME} --project={p} "
+            f"&& gcloud storage buckets add-iam-policy-binding gs://{s.project}_cloudbuild "
+            f"--member=serviceAccount:{build_sa} --role=roles/storage.objectViewer "
+            f"&& gcloud artifacts repositories add-iam-policy-binding {REPO} --location={r} "
+            f"--project={p} --member=serviceAccount:{build_sa} "
+            f"--role=roles/artifactregistry.writer "
+            f"&& gcloud projects add-iam-policy-binding {p} --member=serviceAccount:{build_sa} "
+            f"--role=roles/logging.logWriter --condition=None",
+        ),
+        (
+            "Build image (Cloud Build, cloudbuild.yaml)",
+            f"gcloud builds submit --config cloudbuild.yaml "
+            f"--substitutions=_TAG=$(git rev-parse --short HEAD) "
+            f"--service-account=projects/{s.project}/serviceAccounts/{build_sa} --project={p}",
+        ),
         (
             "Deploy (sessions are in memory: keep ONE instance; see README)",
             f"gcloud run deploy {SERVICE} --image {image} --region={r} --project={p} "
