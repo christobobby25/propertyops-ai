@@ -13,15 +13,31 @@ from pathlib import Path
 from app.config import PROJECT_ROOT
 
 EVAL_CASES_PATH = PROJECT_ROOT / "data" / "eval" / "evaluation_cases.json"
+METADATA_PATH = PROJECT_ROOT / "data" / "reference" / "dataset_metadata.json"
 
-# Setups the Stage 1 harness can simulate (fault injection around read tools).
-SUPPORTED_SETUP_KEYS = frozenset({"tool_fault", "retrieval_fault"})
+# Setups that only need fault injection around read tools (any mode).
+READ_ONLY_SETUP_KEYS = frozenset({"tool_fault", "retrieval_fault"})
+# Setups that seed proposal/approval state (emulator mode only).
+WRITE_SETUP_KEYS = frozenset(
+    {
+        "proposal",
+        "approval_fixture",
+        "execution_requests",
+        "prior_approved_proposal",
+        "proposal_id",
+        "expires_at",
+    }
+)
 # Dataset tool names -> this agent's tool names.
 TOOL_ALIASES = {"get_open_work_orders": "list_my_work_orders"}
-# Cases whose required behaviour is the Stage 2 propose/approve/create flow.
-STAGE2_CASES = {
-    "EVAL-006": "requires presenting a request proposal for approval (Stage 2)",
-}
+# Cases whose behaviour needs the creation tools even without write setup.
+NEEDS_CREATION_TOOLS = {"EVAL-006"}
+
+MODES = ("cloud-readonly", "emulator")
+
+
+def snapshot_at() -> str:
+    return json.loads(METADATA_PATH.read_text())["snapshot_at"]
 
 
 @dataclass(frozen=True)
@@ -36,12 +52,20 @@ class EvalCase:
     forbidden_behaviors: tuple[str, ...]
 
     @property
-    def skip_reason(self) -> str | None:
-        if self.case_id in STAGE2_CASES:
-            return STAGE2_CASES[self.case_id]
-        unsupported = set(self.setup) - SUPPORTED_SETUP_KEYS
-        if unsupported:
-            return f"setup {sorted(unsupported)} requires work-order creation (Stage 2)"
+    def needs_writes(self) -> bool:
+        return self.case_id in NEEDS_CREATION_TOOLS or bool(set(self.setup) & WRITE_SETUP_KEYS)
+
+    @property
+    def expected_new_work_orders(self) -> int:
+        """Exactly one only when an approved proposal is executed (EVAL-014 style)."""
+        return 1 if "execution_requests" in self.setup else 0
+
+    def skip_reason(self, mode: str) -> str | None:
+        unknown = set(self.setup) - READ_ONLY_SETUP_KEYS - WRITE_SETUP_KEYS
+        if unknown:
+            return f"unsupported setup keys {sorted(unknown)}"
+        if mode == "cloud-readonly" and self.needs_writes:
+            return "needs work-order creation; run with --mode emulator"
         return None
 
 

@@ -13,7 +13,7 @@ from app.agent.guards import (
     make_before_tool_callback,
 )
 from app.agent.identity import StaticIdentityProvider
-from app.agent.prompt import INSTRUCTION
+from app.agent.prompt import INSTRUCTION, INSTRUCTION_WITH_CREATION
 from app.config import PROJECT_ROOT, get_settings
 
 
@@ -88,9 +88,14 @@ def test_model_and_limits_are_configurable(valid_env):
 def test_eval_answers_not_in_agent_context():
     cases = json.loads((PROJECT_ROOT / "data/eval/evaluation_cases.json").read_text())
     for case in cases:
-        assert case["case_id"] not in INSTRUCTION
+        for text in (INSTRUCTION, INSTRUCTION_WITH_CREATION):
+            assert case["case_id"] not in text
         for behavior in case["expected"]["required_behaviors"]:
-            assert behavior not in INSTRUCTION
-    for path in [*(PROJECT_ROOT / "app/agent").glob("*.py"), PROJECT_ROOT / "app/retrieval.py"]:
+            assert behavior not in INSTRUCTION and behavior not in INSTRUCTION_WITH_CREATION
+    for path in [
+        *(PROJECT_ROOT / "app/agent").glob("*.py"),
+        PROJECT_ROOT / "app/retrieval.py",
+        PROJECT_ROOT / "app/emulator.py",
+    ]:
         text = Path(path).read_text()
         assert "evaluation_cases" not in text and "app.evaluation" not in text, path

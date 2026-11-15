@@ -50,6 +50,23 @@ class Settings(BaseModel):
     max_tool_calls: int = Field(default=6, ge=1, le=50)
     eval_judge_model: str | None = None
 
+    # Work-order creation (Stage 2). Off by default: the agent never writes
+    # unless explicitly enabled.
+    enable_work_order_creation: bool = False
+    proposal_ttl_seconds: int = Field(default=900, ge=60, le=86400)
+
+    # Firestore target. "emulator" requires FIRESTORE_EMULATOR_HOST and never
+    # falls back to cloud; its project ID must be a demo-* project.
+    firestore_target: Literal["cloud", "emulator"] = "cloud"
+    emulator_project_id: str = "demo-propertyops"
+
+    @field_validator("emulator_project_id")
+    @classmethod
+    def _demo_project(cls, v: str) -> str:
+        if not v.startswith("demo-"):
+            raise ValueError("emulator project IDs must start with 'demo-'")
+        return v
+
     @field_validator("dev_auth_context", "eval_judge_model", mode="before")
     @classmethod
     def _blank_is_none(cls, v):
@@ -118,6 +135,10 @@ _ENV_VARS = {
     "max_llm_calls": "MAX_LLM_CALLS",
     "max_tool_calls": "MAX_TOOL_CALLS",
     "eval_judge_model": "EVAL_JUDGE_MODEL",
+    "enable_work_order_creation": "ENABLE_WORK_ORDER_CREATION",
+    "proposal_ttl_seconds": "PROPOSAL_TTL_SECONDS",
+    "firestore_target": "FIRESTORE_TARGET",
+    "emulator_project_id": "EMULATOR_PROJECT_ID",
 }
 
 

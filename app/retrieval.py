@@ -68,6 +68,16 @@ class FirestorePolicyStore:
         )
         return [{"chunk_id": snap.id, **snap.to_dict()} for snap in query.stream()]
 
+    def published_sections(self, property_id: str, section_ids: list[str]) -> set[str]:
+        """Section IDs that exist, are published, and belong to ``property_id``."""
+        col = self._client.collection(self._collection)
+        snaps = self._client.get_all([col.document(s) for s in section_ids], field_paths=None)
+        return {
+            s.id
+            for s in snaps
+            if s.exists and s.get("property_id") == property_id and s.get("status") == "published"
+        }
+
 
 class PolicyRetriever:
     def __init__(self, store: PolicyVectorStore, embedder: Embedder):

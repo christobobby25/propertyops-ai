@@ -12,15 +12,16 @@ from app.evaluation.checks import CheckResult, trace_summary
 from app.evaluation.runner import CaseRun
 
 JUDGE_PROMPT = """\
-You are grading a property-maintenance assistant's single reply.
+You are grading a property-maintenance assistant.
 
 User message:
 {message}
-
-Tool calls the assistant made (name, arguments -> result summary):
+{repeats}
+Tool calls the assistant made across the conversation (name, arguments -> result
+summary), plus any system confirmation dialogs and the client's response:
 {trace}
 
-Assistant's final reply:
+Assistant's replies (one per user turn, separated by ---):
 <<<
 {answer}
 >>>
@@ -56,6 +57,12 @@ def judge_case(settings: Settings, case: EvalCase, run: CaseRun, client=None) ->
     listing = "\n".join(f"{i}. [{kind}] {text}" for i, (kind, text) in enumerate(behaviours))
     prompt = JUDGE_PROMPT.format(
         message=case.user_message,
+        repeats=(
+            f"(The user sent this identical message {len(run.turn_texts)} times, as "
+            "identical retries of the same request.)\n"
+            if len(run.turn_texts) > 1
+            else ""
+        ),
         trace=trace_summary(run),
         answer=run.final_text or "(empty reply)",
         behaviours=listing,

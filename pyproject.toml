@@ -1,6 +1,7 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = ["emulator: requires the Firestore emulator (FIRESTORE_EMULATOR_HOST)"]
 
 [tool.ruff]
 target-version = "py313"

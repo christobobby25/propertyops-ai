@@ -1,13 +1,21 @@
-"""Live evaluation of the Stage 1 agent (real Gemini + Firestore; read-only).
+"""Live evaluation of the agent with real Gemini. Paid; never run in CI.
 
-    python -m scripts.run_live_eval                    # all Stage 1 cases
-    python -m scripts.run_live_eval --case EVAL-002 --case EVAL-003
-    python -m scripts.run_live_eval --no-judge         # deterministic checks only
+    python -m scripts.run_live_eval                       # --mode cloud-readonly (default)
+    python -m scripts.run_live_eval --mode emulator       # all cases, writes go to emulator
+    python -m scripts.run_live_eval --mode emulator --case EVAL-014 -v
+    python -m scripts.run_live_eval --no-judge            # deterministic checks only
 
-Per case: answer correctness (LLM judge vs. required/forbidden behaviours),
-citation support, expected tool use, and unauthorized disclosure. Cases that
-need work-order creation are reported as SKIP. Writes a JSON report to
-reports/. Exits 1 if any executed case fails.
+Modes:
+  cloud-readonly  Cloud Firestore, read-only. Creation tools are not registered.
+                  Cases that need writes are reported as SKIP.
+  emulator        Every Firestore read/write goes to the local emulator
+                  (FIRESTORE_EMULATOR_HOST; demo-* project). Fresh seed per case.
+                  Fails closed if the emulator is missing/unreachable.
+
+Per case: correctness (LLM judge), citation support, expected tool use,
+unauthorized disclosure, side effects (exact number of new work orders, all
+in scope) and unconfirmed creation claims. Writes a JSON report to reports/.
+Exits 1 if any executed case fails.
 
 The agent receives only the case's user message and a backend-bound demo
 identity; expected answers never enter agent context or retrieval.
@@ -24,14 +32,18 @@ from datetime import datetime
 
 from app.config import PROJECT_ROOT, ConfigError, get_settings
 from app.demo_auth import load_demo_context
-from app.evaluation.cases import load_cases
+from app.evaluation.cases import MODES, load_cases
 from app.evaluation.checks import (
     CheckResult,
     check_citations,
+    check_creation_claims,
     check_disclosure,
+    check_side_effects,
     check_tool_use,
 )
-from app.evaluation.runner import run_case
+from app.evaluation.fixtures import FixtureError
+from app.evaluation.runner import EvalEnvironment, run_case
+from app.gcp import FirestoreTargetError
 
 REPORTS_DIR = PROJECT_ROOT / "reports"
 RATE_LIMIT_BACKOFF_SECONDS = (15, 45)
@@ -72,6 +84,15 @@ async def _main(args) -> int:
             print(f"unknown case ids: {sorted(missing)}", file=sys.stderr)
             return 2
 
+    try:
+        env = EvalEnvironment.create(args.mode, s)
+    except FirestoreTargetError as e:
+        print(f"refusing to run ({args.mode}): {e}", file=sys.stderr)
+        return 2
+    s = env.settings
+
+    target = "emulator (demo project)" if env.writes_enabled else "cloud (read-only)"
+    print(f"mode={args.mode}  firestore={target}  creation_tools={env.writes_enabled}")
     print(f"agent={s.model}  judge={'off' if args.no_judge else s.judge_model}")
     print(
         f"limits: llm_calls={s.max_llm_calls} tool_calls={s.max_tool_calls} "
@@ -80,18 +101,27 @@ async def _main(args) -> int:
 
     results, failed = [], 0
     for case in cases:
-        if reason := case.skip_reason:
+        if reason := case.skip_reason(args.mode):
             print(f"SKIP {case.case_id}  {reason}")
             results.append({"case_id": case.case_id, "outcome": "skip", "reason": reason})
             continue
 
-        run, retries = await _with_rate_limit_retry(lambda c=case: run_case(s, c))
+        try:
+            run, retries = await _with_rate_limit_retry(lambda c=case: run_case(env, c))
+        except FixtureError as e:
+            print(f"FAIL {case.case_id}  fixture error: {e}")
+            failed += 1
+            results.append({"case_id": case.case_id, "outcome": "fail", "reason": str(e)})
+            continue
         auth = load_demo_context(case.auth_context_id)
         checks = [
             check_tool_use(case, run),
             check_citations(case, run),
             check_disclosure(auth, run),
+            check_creation_claims(run),
         ]
+        if env.writes_enabled:
+            checks.append(check_side_effects(case, auth, run))
         if run.error:
             checks.insert(0, CheckResult("run", False, [run.error]))
         if not args.no_judge:
@@ -110,9 +140,13 @@ async def _main(args) -> int:
         failed += not ok
         marks = "  ".join(f"{c.name}={'ok' if c.passed else 'FAIL'}" for c in checks)
         print(f"{'PASS' if ok else 'FAIL'} {case.case_id}  ({run.seconds}s)  {marks}")
+        for gap in run.fixture_gaps:
+            print(f"     fixture gap: {gap}")
         if not ok or args.verbose:
             print(f"     user: {case.user_message}")
             print(f"     tools: {[c['name'] for c in run.tool_calls]}")
+            for conf in run.confirmations:
+                print(f"     confirmation: {conf}")
             for c in checks:
                 if not c.passed or args.verbose:
                     for d in c.details:
@@ -126,6 +160,9 @@ async def _main(args) -> int:
                 "user_message": case.user_message,
                 "answer": run.final_text,
                 "tool_calls": run.tool_calls,
+                "confirmations": run.confirmations,
+                "new_work_orders": [w.get("work_order_id") for w in run.new_work_orders],
+                "fixture_gaps": run.fixture_gaps,
                 "seconds": run.seconds,
                 "rate_limit_retries": retries,
                 "checks": [asdict(c) for c in checks],
@@ -137,14 +174,17 @@ async def _main(args) -> int:
     print(f"\n{executed - failed}/{executed} passed, {failed} failed, {skipped} skipped")
 
     REPORTS_DIR.mkdir(exist_ok=True)
-    path = REPORTS_DIR / f"live-eval-{datetime.now():%Y%m%d-%H%M%S}.json"
-    path.write_text(json.dumps({"model": s.model, "results": results}, indent=2))
+    path = REPORTS_DIR / f"live-eval-{args.mode}-{datetime.now():%Y%m%d-%H%M%S}.json"
+    path.write_text(
+        json.dumps({"mode": args.mode, "model": s.model, "results": results}, indent=2, default=str)
+    )
     print(f"report: {path}")
     return 1 if failed else 0
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    ap.add_argument("--mode", choices=MODES, default="cloud-readonly")
     ap.add_argument("--case", action="append", help="run only this case id (repeatable)")
     ap.add_argument("--no-judge", action="store_true", help="skip the LLM correctness judge")
     ap.add_argument("-v", "--verbose", action="store_true", help="print details for passing cases")

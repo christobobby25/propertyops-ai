@@ -17,6 +17,7 @@ import sys
 from datetime import UTC, datetime
 
 from app.gcp import EMBEDDING_FIELD, POLICY_CHUNKS_COLLECTION, firestore_client, gcs_uri
+from app.indexing import chunk_document
 from app.policy_docs import build_chunks, load_policy_documents
 from scripts._cli import banner, footer, load_settings, parser
 
@@ -52,8 +53,6 @@ def main(argv: list[str] | None = None) -> int:
         footer(False)
         return 0
 
-    from google.cloud.firestore_v1.vector import Vector
-
     from app.embeddings import VertexEmbedder
 
     db = firestore_client(s)
@@ -73,26 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     for c, vec in zip(todo, vectors, strict=True):
         batch.set(
             col.document(c.chunk_id),
-            {
-                "chunk_id": c.chunk_id,
-                "section_id": c.section_id,
-                "document_id": c.document_id,
-                "property_id": c.property_id,
-                "title": c.title,
-                "heading": c.heading,
-                "text": c.text,
-                "version": c.version,
-                "effective_from": c.effective_from,
-                "status": c.status,
-                "audience": list(c.audience),
-                "language": c.language,
-                "source_uri": c.source_uri,
-                "content_hash": hashes[c.chunk_id],
-                "embedding_model": s.embedding_model,
-                "embedding_dimensions": s.embedding_dimensions,
-                "indexed_at": now,
-                EMBEDDING_FIELD: Vector(vec),
-            },
+            chunk_document(c, vec, s, hashes[c.chunk_id], now),
         )
         print(f"embedded {c.chunk_id}")
 

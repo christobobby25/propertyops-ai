@@ -6,6 +6,8 @@ need credentials or network access.
 
 from __future__ import annotations
 
+import os
+import socket
 from typing import TYPE_CHECKING
 
 from app.config import Settings
@@ -24,9 +26,60 @@ def storage_client(s: Settings) -> storage.Client:
     return storage.Client(project=s.project)
 
 
+class FirestoreTargetError(RuntimeError):
+    """Firestore target is misconfigured or unreachable. Never falls back."""
+
+
+EMULATOR_HOST_VAR = "FIRESTORE_EMULATOR_HOST"
+EMULATOR_DATABASE = "(default)"
+
+
+def emulator_host() -> str | None:
+    return os.environ.get(EMULATOR_HOST_VAR) or None
+
+
+def check_emulator_reachable(host: str, timeout: float = 2.0) -> None:
+    hostname, _, port = host.rpartition(":")
+    if not hostname or not port.isdigit():
+        raise FirestoreTargetError(f"{EMULATOR_HOST_VAR}={host!r} is not host:port")
+    if hostname not in {"localhost", "127.0.0.1", "::1", "[::1]"}:
+        raise FirestoreTargetError(f"emulator host must be local, got {hostname!r}")
+    try:
+        with socket.create_connection((hostname.strip("[]"), int(port)), timeout=timeout):
+            pass
+    except OSError as e:
+        raise FirestoreTargetError(f"Firestore emulator unreachable at {host}: {e}") from None
+
+
 def firestore_client(s: Settings) -> firestore.Client:
+    """Return a client for exactly the configured target; fail closed otherwise.
+
+    * emulator: requires a reachable local FIRESTORE_EMULATOR_HOST, uses the
+      demo-* project and anonymous credentials. Never touches cloud.
+    * cloud: refuses to start if FIRESTORE_EMULATOR_HOST is set, because the
+      client library would silently redirect to the emulator.
+    """
     from google.cloud import firestore
 
+    host = emulator_host()
+    if s.firestore_target == "emulator":
+        if not host:
+            raise FirestoreTargetError(
+                f"FIRESTORE_TARGET=emulator but {EMULATOR_HOST_VAR} is not set"
+            )
+        check_emulator_reachable(host)
+        from google.auth.credentials import AnonymousCredentials
+
+        return firestore.Client(
+            project=s.emulator_project_id,
+            database=EMULATOR_DATABASE,
+            credentials=AnonymousCredentials(),
+        )
+
+    if host:
+        raise FirestoreTargetError(
+            f"{EMULATOR_HOST_VAR} is set but FIRESTORE_TARGET=cloud; refusing an ambiguous target"
+        )
     return firestore.Client(project=s.project, database=s.firestore_database)
 
 

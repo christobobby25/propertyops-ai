@@ -58,10 +58,18 @@ class ToolDeps:
     retriever_factory: Callable[[], PolicyRetriever]
     work_orders_factory: Callable[[], WorkOrderRepository]
     timeout_seconds: float
+    # Stage 2: present only when work-order creation is enabled.
+    proposals_factory: Callable[[], Any] | None = None
 
     @cached_property
     def retriever(self) -> PolicyRetriever:
         return self.retriever_factory()
+
+    @cached_property
+    def proposals(self):
+        if self.proposals_factory is None:
+            raise RuntimeError("work-order creation is not enabled")
+        return self.proposals_factory()
 
     @cached_property
     def work_orders(self) -> WorkOrderRepository:
@@ -208,4 +216,21 @@ def build_tools(deps: ToolDeps) -> list[Callable]:
 TOOL_ARGUMENTS: dict[str, frozenset[str]] = {
     "search_policies": frozenset({"query"}),
     "list_my_work_orders": frozenset({"status"}),
+    # Stage 2 (registered only when creation is enabled). No identity fields,
+    # and no approval flag: approval only arrives via ADK tool confirmation.
+    "prepare_work_order_proposal": frozenset(
+        {
+            "category",
+            "summary",
+            "description",
+            "priority",
+            "entry_permission",
+            "policy_section_ids",
+            "reported_facts",
+            "acknowledged_work_order_ids",
+        }
+    ),
+    "submit_work_order_proposal": frozenset({"proposal_id"}),
+    "cancel_work_order_proposal": frozenset({"proposal_id"}),
+    "list_my_proposals": frozenset(),
 }

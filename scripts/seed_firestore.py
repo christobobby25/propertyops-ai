@@ -2,11 +2,12 @@
 
     python -m scripts.seed_firestore                  # dry run
     python -m scripts.seed_firestore --apply          # upsert seed documents
-    python -m scripts.seed_firestore --apply --prune  # also delete non-seed docs (reset)
+    python -m scripts.seed_firestore --apply --prune  # full reset (see below)
 
 Repeatable: each record is written with its natural ID as the document ID and
 fully replaced (set, not merge). --prune resets a collection to the exact
-snapshot, e.g. between evaluation runs. Demo auth fixtures and evaluation
+snapshot (also deleting proposals and execution records and resetting the
+work-order counter), e.g. between evaluation runs. Demo auth fixtures and evaluation
 cases are never written.
 """
 
@@ -14,6 +15,8 @@ from __future__ import annotations
 
 import sys
 
+from app.agent.proposals import COUNTERS, EXECUTIONS, PROPOSALS, WORK_ORDER_COUNTER
+from app.emulator import next_work_order_number
 from app.gcp import firestore_client
 from app.seed_data import OPERATIONAL_COLLECTIONS, load_seed_collection
 from scripts._cli import banner, footer, load_settings, parser
@@ -75,7 +78,21 @@ def main(argv: list[str] | None = None) -> int:
                     if pending >= BATCH_LIMIT:
                         flush()
     flush()
-    print(f"\nwritten={written} pruned={pruned}")
+
+    # Stage 2 state: work-order ID counter, proposals and execution records.
+    counter_ref = db.collection(COUNTERS).document(WORK_ORDER_COUNTER)
+    seed_next = next_work_order_number(plan["work_orders"])
+    if args.prune:
+        for collection in (PROPOSALS, EXECUTIONS):
+            for ref in db.collection(collection).list_documents():
+                ref.delete()
+                pruned += 1
+        counter_ref.set({"next": seed_next})
+    else:
+        current = counter_ref.get()
+        if not current.exists or int(current.get("next")) < seed_next:
+            counter_ref.set({"next": seed_next})
+    print(f"\nwritten={written} pruned={pruned} work_order_counter>={seed_next}")
     return 0
 
 
